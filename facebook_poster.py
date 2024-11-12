@@ -18,9 +18,6 @@ directory_path = "./media"
 # List to store file information
 file_list = []
 
-# Index of the file to process
-file_number = 0
-
 class FacebookPoster:
     def __init__(self, driver_path='chromedriver'):
         self.driver = webdriver.Chrome()
@@ -49,7 +46,7 @@ class FacebookPoster:
         time.sleep(1)
         print("Logged in")
 
-    def edit_post(self, text, post_image):
+    def edit_post(self, text, file_num):
         """
         Edits a post on Facebook by adding the provided text/image to the post.
         """
@@ -67,8 +64,8 @@ class FacebookPoster:
 
             self.add_text(text)
 
-            if post_image:
-                self.add_image()
+            if file_num:
+                self.add_image(file_list[int(file_number)]["path"]) # adds an image to the post
 
             time.sleep(2)
             post_btn = WebDriverWait(self.driver, 10).until(
@@ -77,8 +74,8 @@ class FacebookPoster:
             post_btn.click()
             time.sleep(5)
             logging.info("Post shared successfully")
-            if post_image:
-                self.edit_date()
+            if file_num:
+                self.edit_date(file_list[int(file_number)]["last_edit_day"], file_list[int(file_number)]["last_edit_time"])
 
         except Exception as e:
             logging.error(f"Failed to share the post: {e}")
@@ -92,7 +89,10 @@ class FacebookPoster:
         logging.info("Clicked on text area")
         text_area.send_keys(text) # Write text
 
-    def add_image(self):
+    def add_image(self, file_path):
+        """
+        Adds image to the post. Needs the file path.
+        """
         logging.info("Adding image to the post")
         add_media_btn = WebDriverWait(self.driver, 5).until(
             EC.element_to_be_clickable((By.XPATH, "//*[@aria-label='Photo/video']"))
@@ -100,15 +100,14 @@ class FacebookPoster:
         add_media_btn.click()
 
         file_input = WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/div/div/div[1]/div/div[4]/div/div/div[1]/div/div[2]/div/div/div/form/div/div[1]/div/div/div/div[2]/div[1]/div[2]/div/div[1]/div/div[1]/input"))
-        ) # find the file input (only full xpath seems to work)
+            EC.presence_of_element_located((By.XPATH, "//form[@method='POST']//div//div//div//div//div//div//div//div//div//div//div//div//input[@type='file']"))
+        ) # find the file input
         logging.info("File input found")
-        file_input.send_keys(file_list[file_number]["path"]) # send the path to the image
-        return True
+        file_input.send_keys(file_path) # send the path to the image
 
-    def edit_date(self):
+    def edit_date(self, file_date, file_time):
         """
-        Edits the date of the last post.
+        Edits the date of the last post. Needs date and time.
         """
         try:
             self.driver.get("https://www.facebook.com/profile.php") # go to own posts
@@ -129,9 +128,9 @@ class FacebookPoster:
             )
             date_time = edit_box.find_elements(By.TAG_NAME, "input")
             date_time[0].send_keys(Keys.BACKSPACE * 20)  # clear Field
-            date_time[0].send_keys(file_list[file_number]["last_edit_day"]) # write last modified day of file
+            date_time[0].send_keys(file_date) # write last modified day of file
             date_time[1].send_keys(Keys.BACKSPACE * 20)  # clear Field
-            date_time[1].send_keys(file_list[file_number]["last_edit_time"]) # write last modified time of file
+            date_time[1].send_keys(file_time) # write last modified time of file
             logging.info("Date and time edited")
             self.driver.find_element(By.XPATH, "//*[@aria-label='Done']").click() # click done
 
@@ -142,11 +141,11 @@ class FacebookPoster:
         self.driver.close()
         print("Browser closed")
 
-def collect_file_info(directory_path):
+def collect_file_info(dir_path):
     """
     Collects file information (path, last modified day and time) from the given directory.
     """
-    for root, dirs, files in os.walk(directory_path):
+    for root, dirs, files in os.walk(dir_path):
         for file in files:
             # Combine the root directory and file name to get the file path
             file_path = os.path.join(root, file)
@@ -176,17 +175,18 @@ def collect_file_info(directory_path):
 if __name__ == "__main__":
     file_list = collect_file_info(directory_path)  # Collect file information
 
+    file_number = ""
+
     # image prompt in console
-    image = int(input("Do you want to add an image? 1 for yes; 0 for no: "))
-    if image:
+    if int(input("Do you want to add an image? 1 for yes; 0 for no: ")):
         for file in file_list:
             print(file["path"])
-        file_number = int(input("What file do you want to add? Beginning from 0: "))
+        file_number = input("What file do you want to add? Beginning from 0: ")
 
     fb_poster = FacebookPoster()
     fb_poster.open_facebook()
     fb_poster.login()
     time.sleep(10)
-    fb_poster.edit_post("Hello, this is a test post!", image)
+    fb_poster.edit_post("Hello, this is a test post!", file_number)
     time.sleep(5)
     fb_poster.close()
