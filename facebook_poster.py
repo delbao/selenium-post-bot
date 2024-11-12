@@ -49,11 +49,10 @@ class FacebookPoster:
         time.sleep(1)
         print("Logged in")
 
-    def edit_post(self, text):
+    def edit_post(self, text, post_image):
         """
         Edits a post on Facebook by adding the provided text/image to the post.
         """
-        image_added = False
         try:
             actions = ActionChains(self.driver)
             actions.send_keys(Keys.HOME).perform()
@@ -68,7 +67,8 @@ class FacebookPoster:
 
             self.add_text(text)
 
-            image_added = self.add_image()
+            if post_image:
+                self.add_image()
 
             time.sleep(2)
             post_btn = WebDriverWait(self.driver, 10).until(
@@ -77,7 +77,7 @@ class FacebookPoster:
             post_btn.click()
             time.sleep(5)
             logging.info("Post shared successfully")
-            if image_added:
+            if post_image:
                 self.edit_date()
 
         except Exception as e:
@@ -100,8 +100,8 @@ class FacebookPoster:
         add_media_btn.click()
 
         file_input = WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, '/html/body/div[1]/div/div/div[1]/div/div[4]/div/div/div[1]/div/div[2]/div/div/div/form/div/div[1]/div/div/div/div[2]/div[1]/div[2]/div/div[1]/div/div[1]/input'))
-        ) # find the file input
+            EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/div/div/div[1]/div/div[4]/div/div/div[1]/div/div[2]/div/div/div/form/div/div[1]/div/div/div/div[2]/div[1]/div[2]/div/div[1]/div/div[1]/input"))
+        ) # find the file input (only full xpath seems to work)
         logging.info("File input found")
         file_input.send_keys(file_list[file_number]["path"]) # send the path to the image
         return True
@@ -176,10 +176,17 @@ def collect_file_info(directory_path):
 if __name__ == "__main__":
     file_list = collect_file_info(directory_path)  # Collect file information
 
+    # image prompt in console
+    image = int(input("Do you want to add an image? 1 for yes; 0 for no: "))
+    if image:
+        for file in file_list:
+            print(file["path"])
+        file_number = int(input("What file do you want to add? Beginning from 0: "))
+
     fb_poster = FacebookPoster()
     fb_poster.open_facebook()
     fb_poster.login()
     time.sleep(10)
-    fb_poster.edit_post("Hello, this is a test post!")
+    fb_poster.edit_post("Hello, this is a test post!", image)
     time.sleep(5)
     fb_poster.close()
