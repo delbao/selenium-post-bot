@@ -13,16 +13,18 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 # Define the directory where media files are located
-directory_path = "./media"
+directory_path = "./media" # if this doesn't work use the one below and comment this one out
+# directory_path = r"C:\Users\mathi\OneDrive\Dokumente\Business\Upwork Work\Jobs\Selenium-post-bot\media\\"
 
 # List to store file information
 file_list = []
 
 class FacebookPoster:
     def __init__(self, driver_path='chromedriver'):
-        self.driver = webdriver.Chrome()
-
-        # self.driver.implicitly_wait(5)
+        self.options = webdriver.ChromeOptions()
+        self.options.add_argument('--disable-notifications')
+        self.driver = webdriver.Chrome(options=self.options)
+        self.driver.implicitly_wait(5)
 
     def read_credentials(self, filepath='secrets.txt'):
         with open(filepath, 'r') as file:
@@ -98,7 +100,7 @@ class FacebookPoster:
             EC.element_to_be_clickable((By.XPATH, "//*[@aria-label='Photo/video']"))
         ) # find the Add Photo/video Button
         add_media_btn.click()
-
+        logging.info("Image path: %s", file_path)
         file_input = WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located((By.XPATH, "//form[@method='POST']//div//div//div//div//div//div//div//div//div//div//div//div//input[@type='file']"))
         ) # find the file input
@@ -147,11 +149,14 @@ def collect_file_info(dir_path):
     """
     for root, dirs, files in os.walk(dir_path):
         for file in files:
+            if "C:" in dir_path:
+                absolute_path = dir_path + file
+            else:
             # Combine the root directory and file name to get the file path
-            file_path = os.path.join(root, file)
+                file_path = os.path.join(root, file)
 
-            # Convert the relative file path to an absolute path
-            absolute_path = os.path.abspath(file_path)
+                # Convert the relative file path to an absolute path
+                absolute_path = os.path.abspath(file_path)
 
             # Get the last modification time and convert it to a readable format
             last_edit_date = datetime.fromtimestamp(os.path.getmtime(absolute_path))
@@ -188,5 +193,5 @@ if __name__ == "__main__":
     fb_poster.login()
     time.sleep(10)
     fb_poster.edit_post("Hello, this is a test post!", file_number)
-    time.sleep(5)
+    time.sleep(10)
     fb_poster.close()
