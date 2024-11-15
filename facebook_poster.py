@@ -85,7 +85,7 @@ class FacebookPoster:
     def add_text(self, text):
         logging.info("Adding text to the post")
         text_area = WebDriverWait(self.driver, 5).until(
-            EC.visibility_of_element_located((By.XPATH, '//div[@role="textbox"]'))
+            EC.visibility_of_element_located((By.XPATH, '//div[starts-with(@aria-label, "What\'s on your mind, ")]'))
         ) # find Text Box
         text_area.click()
         logging.info("Clicked on text area")
