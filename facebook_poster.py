@@ -48,17 +48,19 @@ class FacebookPoster:
         time.sleep(1)
         print("Logged in")
 
-    def edit_post(self, text, file_num):
+    def edit_post(self, text, file):
         """
         Edits a post on Facebook by adding the provided text/image to the post.
         """
         try:
             actions = ActionChains(self.driver)
             actions.send_keys(Keys.HOME).perform()
-
-            create_post_area = WebDriverWait(self.driver, 10).until(
+            self.driver.get("https://www.facebook.com")
+            logging.info("On the Homepage")
+            create_post_area = WebDriverWait(self.driver, 15).until(
                 EC.presence_of_element_located((By.XPATH, '//div[contains(@aria-label, "Create a post")]'))
             )
+            logging.info("Create post area found")
             edit_text_element = create_post_area.find_element(By.XPATH, './/div[contains(@role, "button")]')
             edit_text_element.click()
             logging.info("Opened editor")
@@ -66,8 +68,8 @@ class FacebookPoster:
 
             self.add_text(text)
 
-            if file_num:
-                self.add_image(file_list[int(file_number)]["path"]) # adds an image to the post
+            if file:
+                self.add_image(file["path"]) # adds an image to the post
 
             time.sleep(2)
             post_btn = WebDriverWait(self.driver, 10).until(
@@ -76,15 +78,15 @@ class FacebookPoster:
             post_btn.click()
             time.sleep(5)
             logging.info("Post shared successfully")
-            if file_num:
-                self.edit_date(file_list[int(file_number)]["last_edit_day"], file_list[int(file_number)]["last_edit_time"])
+            if file:
+                self.edit_date(file["last_edit_day"], file["last_edit_time"])
 
         except Exception as e:
             logging.error(f"Failed to share the post: {e}")
 
     def add_text(self, text):
         logging.info("Adding text to the post")
-        text_area = WebDriverWait(self.driver, 5).until(
+        text_area = WebDriverWait(self.driver, 10).until(
             EC.visibility_of_element_located((By.XPATH, '//div[starts-with(@aria-label, "What\'s on your mind, ")]'))
         ) # find Text Box
         text_area.click()
@@ -96,7 +98,7 @@ class FacebookPoster:
         Adds image to the post. Needs the file path.
         """
         logging.info("Adding image to the post")
-        add_media_btn = WebDriverWait(self.driver, 5).until(
+        add_media_btn = WebDriverWait(self.driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//*[@aria-label='Photo/video']"))
         ) # find the Add Photo/video Button
         add_media_btn.click()
@@ -113,28 +115,37 @@ class FacebookPoster:
         """
         try:
             self.driver.get("https://www.facebook.com/profile.php") # go to own posts
-            own_post = WebDriverWait(self.driver, 10).until(
+            time.sleep(5) # possible fix for the crashing
+            own_post = WebDriverWait(self.driver, 20).until(
                 EC.presence_of_element_located((By.XPATH, "//*[@data-pagelet='TimelineFeedUnit_0']"))
             ) # find last post
-            own_post.find_element(By.XPATH, "//*[@aria-label='Actions for this post']").click()
+            logging.info("Found post")
+            action_button = own_post.find_element(By.XPATH, "//*[@aria-label='Actions for this post']")
+            logging.info("Found action button")
+            action_button.click()
             logging.info("Clicked post action button")
 
             edit_option = WebDriverWait(self.driver, 5).until(
                 EC.presence_of_all_elements_located((By.XPATH, "//*[@role='menuitem']"))
             )[-3] # open the third option from the bottom
+            logging.info("Found edit date option")
             edit_option.click()
             logging.info("Clicked edit date option")
 
             edit_box = WebDriverWait(self.driver, 5).until(
                 EC.presence_of_element_located((By.XPATH, "//*[@aria-label='Edit Date']"))
             )
+            logging.info("Found edit box")
             date_time = edit_box.find_elements(By.TAG_NAME, "input")
+            logging.info("Found input boxes")
             date_time[0].send_keys(Keys.BACKSPACE * 20)  # clear Field
             date_time[0].send_keys(file_date) # write last modified day of file
+            logging.info("Filled first box")
             date_time[1].send_keys(Keys.BACKSPACE * 20)  # clear Field
             date_time[1].send_keys(file_time) # write last modified time of file
             logging.info("Date and time edited")
             self.driver.find_element(By.XPATH, "//*[@aria-label='Done']").click() # click done
+            logging.info("Clicked done")
 
         except Exception as e:
             logging.error(f"Error editing date: {e}")
@@ -182,16 +193,17 @@ if __name__ == "__main__":
 
     file_number = ""
 
-    # image prompt in console
-    if int(input("Do you want to add an image? 1 for yes; 0 for no: ")):
-        for file in file_list:
-            print(file["path"])
-        file_number = input("What file do you want to add? Beginning from 0: ")
-
     fb_poster = FacebookPoster()
     fb_poster.open_facebook()
     fb_poster.login()
     time.sleep(10)
-    fb_poster.edit_post("Hello, this is a test post!", file_number)
-    time.sleep(10)
+    if len(file_list) >= 1: # Check to see if there are files in the media folder. if not, just post the text.
+        for file in file_list:
+            logging.info("Working on %s; Date: %s; Time: %s", file["path"], file["last_edit_day"], file["last_edit_time"])
+            fb_poster.edit_post("Hello, this is a test post!", file)
+            time.sleep(5)
+    else:
+        fb_poster.edit_post("Hello, this is a test post!", "")
+
+    time.sleep(5)
     fb_poster.close()
