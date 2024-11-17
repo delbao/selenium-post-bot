@@ -116,11 +116,13 @@ class FacebookPoster:
         try:
             self.driver.get("https://www.facebook.com/profile.php") # go to own posts
             time.sleep(5) # possible fix for the crashing
-            own_post = WebDriverWait(self.driver, 20).until(
-                EC.presence_of_element_located((By.XPATH, "//*[@data-pagelet='TimelineFeedUnit_0']"))
+            all_post = WebDriverWait(self.driver, 20).until(
+                EC.presence_of_all_elements_located((By.XPATH, "//*[@data-pagelet='ProfileTimeline']"))
             ) # find last post
-            logging.info("Found post")
-            action_button = own_post.find_element(By.XPATH, "//*[@aria-label='Actions for this post']")
+            logging.info("Found all post")
+            last_post = all_post[0]
+            logging.info("Found latest post")
+            action_button = last_post.find_element(By.XPATH, "//*[@aria-label='Actions for this post']")
             logging.info("Found action button")
             action_button.click()
             logging.info("Clicked post action button")
