@@ -117,15 +117,15 @@ class FacebookPoster:
             self.driver.get("https://www.facebook.com/profile.php") # go to own posts
             time.sleep(5) # possible fix for the crashing
             try:
-                all_post = WebDriverWait(self.driver, 20).until(
-                    EC.presence_of_all_elements_located((By.XPATH, "//*[@data-pagelet='ProfileTimeline']"))
+                last_post = WebDriverWait(self.driver, 20).until(
+                    EC.presence_of_all_elements_located((By.XPATH, '/*[@id="mount_0_0_RS"]/div/div/div[1]/div/div[3]/div/div/div[1]/div[1]/div/div/div[4]/div[2]/div/div[2]/div[3]/div[1]'))
                 ) # find last post
-                logging.info("Found all post")
-                last_post = all_post[0]
                 logging.info("Found latest post")
             except  Exception as e:
                 logging.error(f"Error finding latest post with data-pagelet attribute date: {e}")
-                last_post = self.driver.find_element(By.XPATH, "//body/div/div/div/div/div/div/div/div/div/div/div[@role='main']/div/div/div/div/div[@data-pagelet='ProfileTimeline']/div[1]")
+                all_post = self.driver.find_element(By.XPATH, "//*[@data-pagelet='ProfileTimeline']")
+                logging.info("Found all post")
+                last_post = all_post[0]
                 logging.info("Found latest post through relative XPath")
 
             action_button = last_post.find_element(By.XPATH, "//*[@aria-label='Actions for this post']")
