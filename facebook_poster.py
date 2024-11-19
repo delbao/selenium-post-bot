@@ -116,9 +116,10 @@ class FacebookPoster:
         try:
             self.driver.get("https://www.facebook.com/profile.php") # go to own posts
             time.sleep(5) # possible fix for the crashing
+            """
             try:
                 last_post = WebDriverWait(self.driver, 20).until(
-                    EC.presence_of_all_elements_located((By.XPATH, '/*[@id="mount_0_0_RS"]/div/div/div[1]/div/div[3]/div/div/div[1]/div[1]/div/div/div[4]/div[2]/div/div[2]/div[3]/div[1]'))
+                    EC.presence_of_all_elements_located((By.XPATH, '//*[@id="mount_0_0_RS"]/div/div/div[1]/div/div[3]/div/div/div[1]/div[1]/div/div/div[4]/div[2]/div/div[2]/div[3]/div[1]'))
                 ) # find last post
                 logging.info("Found latest post")
             except  Exception as e:
@@ -127,10 +128,13 @@ class FacebookPoster:
                 logging.info("Found all post")
                 last_post = all_post[0]
                 logging.info("Found latest post through relative XPath")
-
-            action_button = last_post.find_element(By.XPATH, "//*[@aria-label='Actions for this post']")
+            """
+            action_buttons = WebDriverWait(self.driver, 20).until(
+                EC.presence_of_all_elements_located((By.XPATH,
+                                                     "//*[@aria-label='Actions for this post']"))
+            )  # find last post
             logging.info("Found action button")
-            action_button.click()
+            action_buttons[0].click()
             logging.info("Clicked post action button")
 
             edit_option = WebDriverWait(self.driver, 5).until(
