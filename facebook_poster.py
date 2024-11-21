@@ -53,9 +53,12 @@ class FacebookPoster:
         time.sleep(1)
         print("Logged in")
 
-    def edit_post(self, text, file):
+    def edit_post(self, text, files):
         """
         Edits a post on Facebook by adding the provided text/image to the post.
+        If files are provided, the text will be the file name, and multiple files will be grouped in one post.
+        If no files are provided, the text string will be written in the post.
+        After posting, it updates the post date.
         """
         try:
             actions = ActionChains(self.driver)
@@ -70,21 +73,28 @@ class FacebookPoster:
             edit_text_element.click()
             logging.info("Opened editor")
 
+            # If no files, set text to "This is a test post"
+            if files:
+                # Use file names as text
+                text = ", ".join([file["file_name"] for file in files])
 
             self.add_text(text)
 
-            if file:
-                self.add_image(file["path"]) # adds an image to the post
+            for file in files:
+                self.add_image(file["path"])  # Add each image in the group
 
-            time.sleep(2)
+            time.sleep(10)
             post_btn = WebDriverWait(self.driver, 10).until(
                 EC.element_to_be_clickable((By.XPATH, '//div[@aria-label="Post"]'))
             )
             post_btn.click()
             time.sleep(5)
             logging.info("Post shared successfully")
-            if file:
-                self.edit_date(file["last_edit_day"], file["last_edit_time"])
+
+            # After posting, edit the date to match the file's date
+            if files:
+                first_file = files[0]  # Get the first file in the list
+                self.edit_date(first_file["last_edit_day"], first_file["last_edit_time"])
 
         except Exception as e:
             logging.error(f"Failed to share the post: {e}")
@@ -121,19 +131,6 @@ class FacebookPoster:
         try:
             self.driver.get("https://www.facebook.com/profile.php") # go to own posts
             time.sleep(5) # possible fix for the crashing
-            """
-            try:
-                last_post = WebDriverWait(self.driver, 20).until(
-                    EC.presence_of_all_elements_located((By.XPATH, '//*[@id="mount_0_0_RS"]/div/div/div[1]/div/div[3]/div/div/div[1]/div[1]/div/div/div[4]/div[2]/div/div[2]/div[3]/div[1]'))
-                ) # find last post
-                logging.info("Found latest post")
-            except  Exception as e:
-                logging.error(f"Error finding latest post with data-pagelet attribute date: {e}")
-                all_post = self.driver.find_element(By.XPATH, "//*[@data-pagelet='ProfileTimeline']")
-                logging.info("Found all post")
-                last_post = all_post[0]
-                logging.info("Found latest post through relative XPath")
-            """
             action_buttons = WebDriverWait(self.driver, 20).until(
                 EC.presence_of_all_elements_located((By.XPATH,
                                                      "//*[@aria-label='Actions for this post']"))
@@ -251,20 +248,31 @@ def collect_file_info(dir_path):
             file_list.append(file_info)
     return file_list
 
+# Group files by the date they were created or edited
+def group_files_by_date(file_list):
+    grouped_files = defaultdict(list)
+    for file in file_list:
+        grouped_files[file["last_edit_day"]].append(file)
+    return grouped_files
+
 # Main usage
 if __name__ == "__main__":
     file_list = collect_file_info(directory_path)  # Collect file information
+    grouped_files = group_files_by_date(file_list)  # Group files by date
+
     fb_poster = FacebookPoster()
     fb_poster.open_facebook()
     fb_poster.login()
     time.sleep(10)
-    if len(file_list) >= 1: # Check to see if there are files in the media folder. if not, just post the text.
-        for file in file_list:
-            logging.info("Working on %s; Date: %s; Time: %s", file["path"], file["last_edit_day"], file["last_edit_time"])
-            fb_poster.edit_post("Hello, this is a test post!", file)
-            time.sleep(5)
-    else:
-        fb_poster.edit_post("Hello, this is a test post!", "")
 
-    time.sleep(5)
+    for date, files in grouped_files.items():
+        logging.info("Working on files for date: %s", date)
+        fb_poster.edit_post("This is a test post!", files)  # Pass the grouped files
+        time.sleep(5)
+
+    # If no files exist, create a post with the default message
+    if not file_list:
+        fb_poster.edit_post("This is a test post", [])  # No files, just the default message
+        time.sleep(5)
+
     fb_poster.close()
