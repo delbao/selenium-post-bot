@@ -8,6 +8,11 @@ import time
 import os
 from datetime import datetime
 import logging
+from PIL import Image
+from PIL.ExifTags import TAGS
+from pathlib import Path
+from collections import defaultdict
+
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -166,34 +171,81 @@ class FacebookPoster:
         self.driver.close()
         print("Browser closed")
 
+
+def get_exif_date(image_path):
+    """Extracts the EXIF date from an image file."""
+    try:
+        # Open image and extract EXIF data
+        img = Image.open(image_path)
+        exif_data = img._getexif()
+
+        if exif_data is not None:
+            # Find the tag for DateTimeOriginal (which is the date the photo was taken)
+            for tag, value in exif_data.items():
+                if TAGS.get(tag) == 'DateTimeOriginal':
+                    return value  # This will return the date in 'YYYY:MM:DD HH:MM:SS' format
+        return None
+    except Exception as e:
+        print(f"Error extracting EXIF data: {e}")
+        return None
+
+
+def get_creation_date(file_path):
+    """Gets the creation date of the file (from the file system)."""
+    try:
+        # Use os.path.getctime to get the file creation time (in seconds since the epoch)
+        timestamp = os.path.getctime(file_path)
+        # Convert timestamp to human-readable format
+        return datetime.fromtimestamp(timestamp)
+    except Exception as e:
+        print(f"Error retrieving creation date: {e}")
+        return None
+
+
 def collect_file_info(dir_path):
     """
-    Collects file information (path, last modified day and time) from the given directory.
+    Collects file information (path, last edited day and time, EXIF date if image) from the given directory.
+    Uses EXIF date for images or file creation date as a fallback.
     """
+    file_list = []
     for root, dirs, files in os.walk(dir_path):
         for file in files:
             if "C:" in dir_path:
                 absolute_path = dir_path + file
             else:
-            # Combine the root directory and file name to get the file path
                 file_path = os.path.join(root, file)
-
-                # Convert the relative file path to an absolute path
                 absolute_path = os.path.abspath(file_path)
 
-            # Get the last modification time and convert it to a readable format
-            last_edit_date = datetime.fromtimestamp(os.path.getmtime(absolute_path))
+            # Try to get the EXIF date if it's an image
+            exif_date = None
+            if file.lower().endswith(('jpg', 'jpeg', 'png')):
+                exif_date = get_exif_date(absolute_path)
 
-            # Format the last edit date
-            formatted_day = last_edit_date.strftime("%b %d, %Y")  # Format for day (e.g., Nov 10, 2024)
-            formatted_time = last_edit_date.strftime("%I:%M %p")  # Format for time (e.g., 8:15 PM)
+            # If EXIF date is not found, fallback to file creation date
+            if exif_date:
+                # EXIF date is in 'YYYY:MM:DD HH:MM:SS' format, so we need to convert it to a datetime object
+                exif_datetime = datetime.strptime(exif_date, "%Y:%m:%d %H:%M:%S")
+                # Format both day and time
+                formatted_day = exif_datetime.strftime("%b %d, %Y")
+                formatted_time = exif_datetime.strftime("%I:%M %p")
+            else:
+                # Get the creation date
+                creation_date = get_creation_date(absolute_path)
+                # Format both day and time
+                formatted_day = creation_date.strftime("%b %d, %Y")
+                formatted_time = creation_date.strftime("%I:%M %p")
+
+            # Get file name without extension
+            file_name_without_extension = Path(file).stem
 
             # Create a dictionary for each file with the absolute path, day, and time
             file_info = {
                 "path": absolute_path,
                 "last_edit_day": formatted_day,
-                "last_edit_time": formatted_time
+                "last_edit_time": formatted_time,
+                "file_name": file_name_without_extension
             }
+            print(f"File found! File Name: {file_name_without_extension}, File Date: {formatted_day}, File Time: {formatted_time}, File Path: {absolute_path}")
 
             # Append to the list
             file_list.append(file_info)
@@ -202,9 +254,6 @@ def collect_file_info(dir_path):
 # Main usage
 if __name__ == "__main__":
     file_list = collect_file_info(directory_path)  # Collect file information
-
-    file_number = ""
-
     fb_poster = FacebookPoster()
     fb_poster.open_facebook()
     fb_poster.login()
