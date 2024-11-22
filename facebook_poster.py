@@ -12,6 +12,8 @@ from PIL import Image
 from PIL.ExifTags import TAGS
 from pathlib import Path
 from collections import defaultdict
+import undetected_chromedriver as uc
+
 
 
 # Set up logging
@@ -27,8 +29,10 @@ file_list = []
 class FacebookPoster:
     def __init__(self, driver_path='chromedriver'):
         self.options = webdriver.ChromeOptions()
+        self.options.headless = True    #headless
+        self.options.add_argument("start-maximized")
         self.options.add_argument('--disable-notifications')
-        self.driver = webdriver.Chrome(options=self.options)
+        self.driver = uc.Chrome(options=self.options)
         self.driver.implicitly_wait(5)
 
     def read_credentials(self, filepath='secrets.txt'):
@@ -39,7 +43,6 @@ class FacebookPoster:
 
     def open_facebook(self, url='https://facebook.com'):
         self.driver.get(url)
-        self.driver.maximize_window()
         time.sleep(1.5)
         print("Webpage opened")
 
@@ -136,6 +139,9 @@ class FacebookPoster:
                                                      "//*[@aria-label='Actions for this post']"))
             )  # find last post
             logging.info("Found action button")
+            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", action_buttons[0])
+            WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, "//*[@aria-label='Actions for this post']")))
             action_buttons[0].click()
             logging.info("Clicked post action button")
 
