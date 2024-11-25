@@ -96,6 +96,9 @@ class FacebookPoster:
 
             # After posting, edit the date to match the file's date
             if files:
+                WebDriverWait(self.driver, 300).until(
+                    EC.invisibility_of_element_located((By.XPATH, "//span[contains(text(), 'Create post')]"))
+                )
                 first_file = files[0]  # Get the first file in the list
                 self.edit_date(first_file["last_edit_day"], first_file["last_edit_time"])
 
