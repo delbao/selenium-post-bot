@@ -130,67 +130,76 @@ class FacebookPoster:
         logging.info("File input found")
         file_input.send_keys(file_path) # send the path to the image
 
+    def retry_until_post_found(self, file_name, max_retries=10, refresh_interval=20):
+        """
+        Retry logic to locate the post with the specified file name.
+        """
+        retries = 0
+        while retries < max_retries:
+            try:
+                self.driver.get("https://www.facebook.com/profile.php")  # Go to own posts
+                time.sleep(5)  # Wait for the page to load
+
+                if file_name in self.driver.page_source:
+                    logging.info(f"Found post for {file_name}")
+                    return True  # Post found
+                else:
+                    logging.warning(
+                        f"Post with the specified title not found. Retrying... ({retries + 1}/{max_retries})")
+            except Exception as e:
+                logging.error(f"Error locating post: {e}")
+
+            retries += 1
+            time.sleep(refresh_interval)
+
+        return False  # Post not found after retries
 
     def edit_date(self, file):
         """
         Edits the date of the last post. Needs date and time.
         """
-        retries = 0
-        max_retries = 10
-        refresh_interval = 20  # seconds
         file_date = file["last_edit_day"]
         file_time = file["last_edit_time"]
         file_name = file["file_name"]
 
-        while retries < max_retries:
+        if self.retry_until_post_found(file_name):
             try:
-                self.driver.get("https://www.facebook.com/profile.php") # go to own posts
-                time.sleep(5) # possible fix for the crashing
-                if file_name in self.driver.page_source:
-                    logging.info(f"found post for {file_name}")
-                    action_buttons = WebDriverWait(self.driver, 20).until(
-                        EC.presence_of_all_elements_located((By.XPATH,
-                                                             "//*[@aria-label='Actions for this post']"))
-                    )  # find last post
-                    logging.info("Found action button")
-                    self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", action_buttons[0])
-                    WebDriverWait(self.driver, 10).until(
-                        EC.element_to_be_clickable((By.XPATH, "//*[@aria-label='Actions for this post']")))
-                    action_buttons[0].click()
-                    logging.info("Clicked post action button")
+                action_buttons = WebDriverWait(self.driver, 20).until(
+                    EC.presence_of_all_elements_located((By.XPATH, "//*[@aria-label='Actions for this post']"))
+                )  # Find last post
+                logging.info("Found action button")
+                self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", action_buttons[0])
+                WebDriverWait(self.driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, "//*[@aria-label='Actions for this post']"))
+                )
+                action_buttons[0].click()
+                logging.info("Clicked post action button")
 
-                    edit_option = WebDriverWait(self.driver, 5).until(
-                        EC.presence_of_all_elements_located((By.XPATH, "//*[@role='menuitem']"))
-                    )[-3] # open the third option from the bottom
-                    logging.info("Found edit date option")
-                    edit_option.click()
-                    logging.info("Clicked edit date option")
+                edit_option = WebDriverWait(self.driver, 5).until(
+                    EC.presence_of_all_elements_located((By.XPATH, "//*[@role='menuitem']"))
+                )[-3]  # Open the third option from the bottom
+                logging.info("Found edit date option")
+                edit_option.click()
+                logging.info("Clicked edit date option")
 
-                    edit_box = WebDriverWait(self.driver, 5).until(
-                        EC.presence_of_element_located((By.XPATH, "//*[@aria-label='Edit Date']"))
-                    )
-                    logging.info("Found edit box")
-                    date_time = edit_box.find_elements(By.TAG_NAME, "input")
-                    logging.info("Found input boxes")
-                    date_time[0].send_keys(Keys.BACKSPACE * 20)  # clear Field
-                    date_time[0].send_keys(file_date) # write last modified day of file
-                    logging.info("Filled first box")
-                    date_time[1].send_keys(Keys.BACKSPACE * 20)  # clear Field
-                    date_time[1].send_keys(file_time) # write last modified time of file
-                    logging.info("Date and time edited")
-                    self.driver.find_element(By.XPATH, "//*[@aria-label='Done']").click() # click done
-                    logging.info("Clicked done")
-                    return
-
-                # If post title is not found
-                logging.warning(f"Post with the specified title not found. Retrying... ({retries + 1}/{max_retries})")
-                retries += 1
-                time.sleep(refresh_interval)
-
+                edit_box = WebDriverWait(self.driver, 5).until(
+                    EC.presence_of_element_located((By.XPATH, "//*[@aria-label='Edit Date']"))
+                )
+                logging.info("Found edit box")
+                date_time = edit_box.find_elements(By.TAG_NAME, "input")
+                logging.info("Found input boxes")
+                date_time[0].send_keys(Keys.BACKSPACE * 20)  # Clear field
+                date_time[0].send_keys(file_date)  # Write last modified day of file
+                logging.info("Filled first box")
+                date_time[1].send_keys(Keys.BACKSPACE * 20)  # Clear field
+                date_time[1].send_keys(file_time)  # Write last modified time of file
+                logging.info("Date and time edited")
+                self.driver.find_element(By.XPATH, "//*[@aria-label='Done']").click()  # Click done
+                logging.info("Clicked done")
             except Exception as e:
                 logging.error(f"Error editing date: {e}")
-                retries += 1
-                time.sleep(refresh_interval)
+        else:
+            logging.error(f"Post for file {file_name} not found after retries.")
 
     def close(self):
         self.driver.close()
